@@ -1,9 +1,9 @@
 # NeuroShiny
  A Web app for looking at gene expression changes during human brain development
 
-[https://rosie-griffiths.shinyapps.io/NeuroShiny/]https://rosie-griffiths.shinyapps.io/NeuroShiny/
+https://rosie-griffiths.shinyapps.io/NeuroShiny/
 
-## Installation
+## Installation to run it locally
 
 First run the following code to make sure you have all the packages to run the NeuroShiny app
 
@@ -16,7 +16,11 @@ if(length(newPkg)){install.packages(newPkg)}
 
 ## Running the app
 
-To run the app locally download the reposity to your machine and unzip it. Then change directory to the folder
+To run the app locally;
+1. Download the repository to your machine
+2. Unzip it
+3. Change directory to the app folder
+
 ```r
 library(shiny)
 setwd("~/NeuroShiny-main")
