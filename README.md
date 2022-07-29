@@ -17,13 +17,12 @@ if(length(newPkg)){install.packages(newPkg)}
 ## Running the app
 
 To run the app locally;
-1. Download the repository to your machine
-2. Unzip it
-3. Change directory to the app folder
+1. Download the repository to your machine and unzip it
+2. In RStudio run the following code
 
 ```r
 library(shiny)
-setwd("~/NeuroShiny-main")
+setwd("~/NeuroShiny-main") #Change working directory to the NeuroShiny folder
 runApp()
 ```
 
