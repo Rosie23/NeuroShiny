@@ -6,7 +6,6 @@ options(rsconnect.http.verbose = TRUE)
 
 #Upload code and resources to github, allow users to host locally?
 
-#library(directlabels)
 library(GeneOverlap)
 library(visNetwork)
 library(DT)
@@ -283,7 +282,9 @@ margin-bottom: 10px;
                     tags$h2("Multiple Gene List Overlap Analysis",align = "center"),
                     box(width=3, title = "Select Gene lists",
                         selectInput("multiple_gene_list","Select Gene Lists",choices = names(gene_lists),
-                                    multiple = T,selected=names(gene_lists)[3:5])),
+                                    multiple = T,selected=names(gene_lists)[3:5]),
+                        fileInput("user_gene_lists2", "Upload Gene List",multiple = TRUE,
+                                  accept = c("text/txt","text/tab-separated-values,text/plain",".txt"))),
                     box(width=9,title="Venn Diagram",
                         plotOutput("multipleVenn"),
                         downloadButton("downloadMultiVennOverlap","Download Overlap")),
@@ -1155,7 +1156,6 @@ You can also upload your own gene list and identify genes within your list which
             labs(y="Expression", x="Age (p.c.w)")+
             theme_black+
             scale_fill_manual(values=structure_cols)+scale_color_manual(values=structure_cols)+
-            #directlabels::geom_dl(aes(label = structure_acronym), method ="smart.grid", cex = 0.5)+
             labs(title = paste0("Regional ", input$Gene, " expression in humans")) + theme(plot.title = element_text(size = 14))
     }
     
@@ -1346,7 +1346,7 @@ You can also upload your own gene list and identify genes within your list which
     output$downloadMultiVennOverlap <- downloadHandler(
       filename = function(){"Venn Overlap Results.xlsx"},
       content = function(file) {
-        intersection_df = get.venn.partitions(x = gene_lists[input$multiple_gene_list])
+        intersection_df = get.venn.partitions(x = multiple_venn_list())
         tmp <- data.frame(ID=as.numeric(),Genes=as.character())
         for(i in 1:length(intersection_df$..values..)){
           lst <- intersection_df$..values..[i]
@@ -1357,7 +1357,7 @@ You can also upload your own gene list and identify genes within your list which
         
         venn_lists <- intersection_df$..values..
         venn_lists <- lapply(venn_lists, FUN=as.data.frame)
-        intersection_df = intersection_df[,-5]
+        #intersection_df = intersection_df[,-5] ?
         intersection_df$ID = rownames(intersection_df)
         intersection_df = merge(intersection_df, tmp, by="ID", by.y="ID")
         sheets <- c(list(intersection_df),venn_lists)
@@ -1391,7 +1391,7 @@ You can also upload your own gene list and identify genes within your list which
       HTML(paste(str1, str2, str3, str4, str5, str6, sep = '<br/>'))
     })
     
-    #Enrichment Venn Diagram - add function for multiple venn diagram overlap
+    #Enrichment Venn Diagram - if user list imported update select input
     observeEvent(input$user_gene_lists, {
       updateSelectInput(
         session,
@@ -1399,6 +1399,8 @@ You can also upload your own gene list and identify genes within your list which
         choices = c("User list", names(gene_lists)))
       #user_file <- input$user_gene_lists
     })
+    
+    #Two List Venn Diagram Overlap
     
     output$venn_diagram <- renderPlot({
       if(input$enrichment_list1 == "User list"){
@@ -1430,9 +1432,35 @@ You can also upload your own gene list and identify genes within your list which
                    cat.dist = c(0, 0))
     })
     
-    #Multiple gene lists overlap
+    #Multiple gene lists overlap 
+    
+    observeEvent(input$user_gene_lists2, {
+      updateSelectInput(
+        session,
+        "multiple_gene_list",
+        selected=c("User List",names(gene_lists)[c(3:5)]),
+        choices = c("User List", names(gene_lists)))
+    })
+    
+    multiple_venn_list <- reactive({
+    
+      if("User List" %in% input$multiple_gene_list){
+        user_file <- input$user_gene_lists2
+        user_list <- read.csv(user_file$datapath)
+        user_list <- as.character(unlist(user_list))
+        user_list <-user_list[!is.na(user_list)]
+        user_list <- list(user_list)
+        names(user_list) <- "User List"
+        gene_list_selected <-  input$multiple_gene_list[-1]
+        multiple_venn_list <- c(user_list, gene_lists[gene_list_selected])
+      } else{
+        multiple_venn_list <- gene_lists[input$multiple_gene_list]
+      }
+      multiple_venn_list
+    })
+    
     output$upsetPlot <- renderPlot({
-      UpSetR::upset(UpSetR::fromList(gene_lists[input$multiple_gene_list]),order.by = "freq")
+      UpSetR::upset(UpSetR::fromList(multiple_venn_list()),order.by = "freq")
     })
     
     output$multipleVenn <- renderPlot({
@@ -1440,7 +1468,7 @@ You can also upload your own gene list and identify genes within your list which
         venn_cols <- c("#009E73", "#56B4E9")
       }else
         venn_cols <- brewer.pal(length(input$multiple_gene_list),"Spectral")
-      display_venn(x = gene_lists[input$multiple_gene_list],
+      display_venn(x = multiple_venn_list(),   #gene_lists[input$multiple_gene_list]
                    # Circles
                    fill = venn_cols,
                    lwd = 2,
@@ -1500,15 +1528,6 @@ You can also upload your own gene list and identify genes within your list which
       }
     })
     
-   # user_cluster_data <- reactive({
-  #    if(input$test_scRNAseq_cluster == TRUE)
-  #    {
-  #      user_clusters <- read.table("scRNAseq_test_markers.txt", header = T, sep="\t")
-  #      user_clusters <- subset(user_clusters, p_val<input$cluster_pvalue_filter)
-  #      user_clusters <- subset(user_clusters, avg_log2FC>input$cluster_FC_filter)
-  #    }
-  #  })
-    
     observeEvent(input$run_cluster_analysis,{
       user_cluster_names <- as.character(unique(user_cluster_data()$cluster))
       #Make user cluster list
@@ -1520,7 +1539,6 @@ You can also upload your own gene list and identify genes within your list which
         names(user_gene_list) <- i
         user_cluster_list <- c(user_cluster_list,user_gene_list)
       }
-      
       
       #Comparing user lists to all loaded lists
       all_gene_lists <- c(gene_lists, user_cluster_list)
